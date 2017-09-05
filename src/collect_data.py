@@ -25,17 +25,19 @@ def get_news_response(company_id):
 
     return id_arr
 
-def get_articles_from_ids(id_arr, existing_id_arr):
+def get_articles_from_ids(stock_symbol, id_arr, existing_id_arr):
     details_array = []
+
     for article_id in id_arr:
-        if (existing_id_arr == None) or (existing_id_arr != None and article_id not in existing_id_arr):
+        if (existing_id_arr is None) or (existing_id_arr != None and article_id not in existing_id_arr):
             req = requests.request('GET', 'http://myallies.com/api/newsitem/' + str(article_id))
             article_data = json.loads(req.content)
-            details_array.append((article_id, article_data['PublishDate'], article_data['Content']))
+            details_array.append((stock_symbol, article_id, article_data['PublishDate'], article_data['Content']))
 
     return details_array
 
 crosswalk = create_company_crosswalk()
+total_additions = 0
 
 for symbol, name in crosswalk:
     print(symbol, name)
@@ -45,10 +47,14 @@ for symbol, name in crosswalk:
     if os.path.exists(target_file) and os.path.getsize(target_file) > 4:
         with open(target_file, 'rb') as f:
             existing_list = pickle.load(f)
-            article_array = existing_list + get_articles_from_ids(article_id_array, [article[0] for article in existing_list])
+            new_articles = get_articles_from_ids(symbol, article_id_array, [article[0] for article in existing_list])
+            total_additions += len(new_articles)
+            article_array = existing_list + new_articles
     else:
-        article_array = get_articles_from_ids(article_id_array, None)
+        article_array = get_articles_from_ids(symbol, article_id_array, None)
 
     if len(article_array) > 0:
         with open(target_file, 'wb') as f:
             pickle.dump(article_array, f)
+
+print("Total amount of articles added:", total_additions)
